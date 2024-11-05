@@ -329,6 +329,7 @@ public class Controller : MonoBehaviour
 
         stageStatus = new StageStatus(stageDataList[stageID]);
         TipsAudioSource.clip = stageDataList[stageID].Sound;
+        TipsAudioSource.Stop();
 
         if (GameBoard.transform.childCount > 0)
         {

@@ -103,6 +103,7 @@ public class GameNode : MonoBehaviour
         // 使用 DoTween 创建左右摇晃的动画
         DOTween.Sequence()
             .Append(ImageCharacter.transform.DOShakeRotation(shakeDuration, new Vector3(0, 0, shakeAmount)))
+            .AppendCallback(() => { Dissolved = false; FadedOut = true; })
             .SetLoops(shakeLoop ? -1 : 1, LoopType.Restart); // 循环次数，-1 表示无限循环
     }
 
@@ -131,11 +132,14 @@ public class GameNode : MonoBehaviour
 
     public void OnClick()
     {
-        Debug.Log($"OnClick:{Idx}");
-        //EnableOutline(true);
-        StartScale();
-        Dissolved = true;
-        Cntlr?.OnGameNodeClick(Idx);
+        if (Cntlr && Cntlr.EnableClick && !Dissolved && !FadedOut)
+        {
+            Debug.Log($"OnClick:{Idx}");
+            //EnableOutline(true);
+            StartScale();
+            Dissolved = true;
+            Cntlr?.OnGameNodeClick(Idx);
+        }
     }
 
     void OnDisable()

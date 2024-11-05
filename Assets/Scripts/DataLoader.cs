@@ -12,7 +12,9 @@ public class StageStatus
 {
     public int CurrentStep = 1;
     public int TotalStep = 0;
+    public int FailedTime = 0;
     public List<int> StepList = new List<int>();
+    public List<GameNode> gameNodeList = new List<GameNode>();
 
     public StageStatus(StageData stageData)
     {
@@ -20,6 +22,7 @@ public class StageStatus
         TotalStep = stageData.Answer.Count;
         StepList = new List<int>();
         StepList.Add(stageData.Answer[0]);
+        FailedTime = 0;
     }
 }
 

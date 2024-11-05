@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -10,8 +11,10 @@ using UnityEngine.UI;
 public class Controller : MonoBehaviour
 {
     // Start is called before the first frame update
-
+    public bool EnableClick = false;
     public GameObject PanelCover;
+
+    public MessageBox MsgBox;
 
     public Button playSoundButton;
     public Button lightButton;
@@ -34,11 +37,13 @@ public class Controller : MonoBehaviour
 
     IEnumerator Start()
     {
+        MsgBox.ShowMessage("Downloading Resources...", 50);
         DataLoader.Instance.ClearDownloadedFiles();
         stageDataList = DataLoader.Instance.GenerateStageData();
         yield return DownloadAndLoadData(stageDataList);
         //yield return null;
         Debug.Log("Download Finished");
+        MsgBox.Hide();
 
         InitStage(CurStageIdx);
 
@@ -75,7 +80,7 @@ public class Controller : MonoBehaviour
 
     private void lightButton_Click()
     {
-
+        ShowCorrectAnswer();
     }
 
     private void playSoundButton_Click()
@@ -86,7 +91,127 @@ public class Controller : MonoBehaviour
 
     private void nextButton_Click()
     {
+        if (stageStatus.StepList.Count < stageDataList[CurStageIdx].Answer.Count)
+        {
+            return;
+        }
 
+        if (stageStatus.StepList.SequenceEqual(stageDataList[CurStageIdx].Answer))
+        {
+            if (CurStageIdx >= stageDataList.Count - 1)
+            {
+                MsgBox.ShowMessage("You Win! This Is The Last Stage!");
+            }
+            else
+            {
+                MsgBox.ShowMessage("You Win! Go To Next Stage!");
+                CurStageIdx++;
+                InitStage(CurStageIdx);
+            }
+               
+        }
+        else
+        {
+            stageStatus.FailedTime++;
+            if (stageStatus.FailedTime >= 2)
+            {
+                ShowCorrectAnswer();
+            }
+            else
+            {
+                int startIdx = 0;
+                var list = FindIncorrectNodeIdx(out startIdx);
+
+                for (int i = 0; i < list.Count; i++) {
+                    stageStatus.gameNodeList[list[i]].StartShake();
+                }
+
+                //Go Back
+                GoBackToStep(startIdx - 1);
+            }
+
+        }
+    }
+
+    private void ShowCorrectAnswer()
+    {
+        MsgBox.ShowMessage("The Correct Answer Is:");
+        for (int i = 0; i < stageStatus.gameNodeList.Count; i++)
+        {
+            stageStatus.gameNodeList[i].FadedOut = true;
+            stageStatus.gameNodeList[i].Dissolved = false;
+        }
+        for (int i = 0;i < stageDataList[CurStageIdx].Answer.Count; i++)
+        {
+            stageStatus.gameNodeList[stageDataList[CurStageIdx].Answer[i]].FadedOut = false;
+            stageStatus.gameNodeList[stageDataList[CurStageIdx].Answer[i]].Dissolved = true;
+        }
+        EnableClick = false;
+
+        StartCoroutine(GoToNextLevel());
+    }
+
+    private IEnumerator GoToNextLevel()
+    {
+        yield return new WaitForSeconds(2);
+        if (CurStageIdx >= stageDataList.Count)
+        {
+            MsgBox.ShowMessage("This Is The Last Stage! Will Go Back To The 1st Stage Soon!");
+            yield return new WaitForSeconds(2);
+            CurStageIdx = 0;
+            InitStage(CurStageIdx);
+        }
+        else
+        {
+            MsgBox.ShowMessage("Go To Next Level Soon!");
+            yield return new WaitForSeconds(2);
+            CurStageIdx++;
+            InitStage(CurStageIdx);
+        }
+    }
+
+    private void GoBackToStep(int stepIdx)
+    {
+        for (int i = 0; i < stageStatus.gameNodeList.Count; i++)
+        {
+            stageStatus.gameNodeList[i].FadedOut = true;
+            stageStatus.gameNodeList[i].Dissolved = false;
+        }
+
+        for (int i = 0; i <= stepIdx; i++)
+        {
+            stageStatus.gameNodeList[stageStatus.StepList[i]].Dissolved = true;
+            stageStatus.gameNodeList[stageStatus.StepList[i]].FadedOut = false;
+        }
+        stageStatus.StepList.RemoveRange(stepIdx + 1, stageStatus.StepList.Count - stepIdx - 1);
+        stageStatus.CurrentStep = stepIdx + 1;
+
+        var list = GetNeighborGameNodes(stageStatus.StepList[stageStatus.StepList.Count - 1]);
+        foreach (var item in list)
+        {
+            stageStatus.gameNodeList[item].FadedOut = false;
+        }
+        nextButton.gameObject.SetActive(false);
+        stepNumberImage.gameObject.SetActive(true);
+        stepNumberText.text = $"{stageStatus.CurrentStep}/{stageStatus.TotalStep}";
+        EnableClick = true;
+    }
+
+    private List<int> FindIncorrectNodeIdx(out int startIdx)
+    {
+        List<int> l = new List<int>();
+        startIdx = 0;
+
+        for (int i = 0; i < stageStatus.StepList.Count; i++) {
+            if (stageStatus.StepList[i] != stageDataList[CurStageIdx].Answer[i])
+            {
+                startIdx = i;
+                l.AddRange(stageStatus.StepList.GetRange(i, stageStatus.StepList.Count - i));
+                break;
+            }
+        }
+
+        return l;
     }
 
     private static event Action<string> OnDownloadProgressEvent = null;
@@ -193,7 +318,7 @@ public class Controller : MonoBehaviour
     bool InitStage(int stageID)
     {
         PanelCover.gameObject.SetActive(true);
-
+        EnableClick = false;
         nextButton.gameObject.SetActive(false);
         stepNumberImage.gameObject.SetActive(true);
         stepNumberText.text = $"1/{stageDataList[stageID].Answer.Count}";
@@ -244,20 +369,68 @@ public class Controller : MonoBehaviour
                 gn.Dissolved= false;
             }
         }
-
+        var list = GetNeighborGameNodes(stageDataList[stageID].Answer[0]);
+        for (int i = 0; i < list.Count; i++)
+        {
+            gns[list[i]].FadedOut = false;
+        }
+        stageStatus.gameNodeList = gns;
+        EnableClick = true;
         PanelCover.gameObject.SetActive(false);
 
         return true;
     }
 
+    private List<int> GetNeighborGameNodes(int Idx)
+    {
+        List<int> l = new List<int>();
+
+        int row = Idx / stageDataList[CurStageIdx].Cols;
+        int col = Idx % stageDataList[CurStageIdx].Cols;
+
+        int row_up = row - 1;
+        int row_down = row + 1;
+        int col_left = col - 1;
+        int col_right = col + 1;
+
+        if (row_up >= 0)
+        {
+            l.Add(col + row_up * stageDataList[CurStageIdx].Cols);
+        }
+        if (row_down < stageDataList[CurStageIdx].Rows)
+        {
+            l.Add(col + row_down * stageDataList[CurStageIdx].Cols);
+        }
+        if (col_left >= 0)
+        {
+            l.Add(col_left + row * stageDataList[CurStageIdx].Cols);
+        }
+        if (col_right < stageDataList[CurStageIdx].Cols)
+        {
+            l.Add(col_right + row * stageDataList[CurStageIdx].Cols);
+        }
+
+        return l;
+    }
+
     public void OnGameNodeClick(int Idx)
     {
         stageStatus.StepList.Add(Idx);
+        stageStatus.CurrentStep++;
         stepNumberText.text = $"{stageStatus.StepList.Count}/{stageDataList[CurStageIdx].Answer.Count}";
         if (stageStatus.StepList.Count == stageDataList[CurStageIdx].Answer.Count)
         {
             stepNumberImage.gameObject.SetActive(false);
             nextButton.gameObject.SetActive(true);
+            EnableClick = false;
+        }
+        else
+        {
+            List<int> l = GetNeighborGameNodes(Idx);
+            for (int i = 0; i < l.Count; i++)
+            {
+                stageStatus.gameNodeList[l[i]].FadedOut = false;
+            }
         }
     }
 }

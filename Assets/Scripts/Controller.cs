@@ -154,7 +154,7 @@ public class Controller : MonoBehaviour
     private IEnumerator GoToNextLevel()
     {
         yield return new WaitForSeconds(2);
-        if (CurStageIdx >= stageDataList.Count)
+        if (CurStageIdx >= stageDataList.Count - 1)
         {
             MsgBox.ShowMessage("This Is The Last Stage! Will Go Back To The 1st Stage Soon!");
             yield return new WaitForSeconds(2);
@@ -321,11 +321,11 @@ public class Controller : MonoBehaviour
         EnableClick = false;
         nextButton.gameObject.SetActive(false);
         stepNumberImage.gameObject.SetActive(true);
-        stepNumberText.text = $"1/{stageDataList[stageID].Answer.Count}";
 
         if (stageID < 0 || stageID >= stageDataList.Count) { 
             return false;
         }
+        stepNumberText.text = $"1/{stageDataList[stageID].Answer.Count}";
 
         stageStatus = new StageStatus(stageDataList[stageID]);
         TipsAudioSource.clip = stageDataList[stageID].Sound;

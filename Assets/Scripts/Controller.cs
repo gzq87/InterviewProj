@@ -11,10 +11,14 @@ public class Controller : MonoBehaviour
 {
     // Start is called before the first frame update
 
+    public GameObject PanelCover;
+
     public Button playSoundButton;
     public Button lightButton;
     public Button closeButton;
     public Button refreshButton;
+    public Button nextButton;
+    public Image stepNumberImage;
     public TMPro.TextMeshProUGUI stepNumberText;
 
     public AudioSource TipsAudioSource;
@@ -26,6 +30,7 @@ public class Controller : MonoBehaviour
     public GameObject GameNodePrefab;
     public GameObject GameBoard;
     
+
 
     IEnumerator Start()
     {
@@ -41,12 +46,12 @@ public class Controller : MonoBehaviour
         lightButton.onClick.AddListener(lightButton_Click);
         closeButton.onClick.AddListener(closeButton_Click);
         refreshButton.onClick.AddListener(refreshButton_Click);
+        nextButton.onClick.AddListener(nextButton_Click);
 
 
                 
     }
 
-    
 
     // Update is called once per frame
     void Update()
@@ -56,7 +61,7 @@ public class Controller : MonoBehaviour
 
     private void refreshButton_Click()
     {
-
+        InitStage(CurStageIdx);
     }
 
     private void closeButton_Click()
@@ -74,6 +79,12 @@ public class Controller : MonoBehaviour
     }
 
     private void playSoundButton_Click()
+    {
+        TipsAudioSource.Stop();
+        TipsAudioSource.PlayOneShot(stageDataList[CurStageIdx].Sound);
+    }
+
+    private void nextButton_Click()
     {
 
     }
@@ -181,6 +192,12 @@ public class Controller : MonoBehaviour
 
     bool InitStage(int stageID)
     {
+        PanelCover.gameObject.SetActive(true);
+
+        nextButton.gameObject.SetActive(false);
+        stepNumberImage.gameObject.SetActive(true);
+        stepNumberText.text = $"1/{stageDataList[stageID].Answer.Count}";
+
         if (stageID < 0 || stageID >= stageDataList.Count) { 
             return false;
         }
@@ -211,19 +228,36 @@ public class Controller : MonoBehaviour
             GameObject go = Instantiate(GameNodePrefab, GameBoard.transform);
             var gn = go.GetComponent<GameNode>();
             gn.Idx = i;
+            gn.Cntlr = this;
             gns.Add(gn);
             gn.SetSpriteCharacter(stageDataList[stageID].Images[i]);
             gn.EnableOutline(false);
+            gn.Dissolved = false;
             if (i == stageDataList[stageID].Answer[0])
             {
                 gn.FadedOut = false;
+                gn.Dissolved = true;
             }
             else
             {
                 gn.FadedOut= true;
+                gn.Dissolved= false;
             }
         }
 
+        PanelCover.gameObject.SetActive(false);
+
         return true;
+    }
+
+    public void OnGameNodeClick(int Idx)
+    {
+        stageStatus.StepList.Add(Idx);
+        stepNumberText.text = $"{stageStatus.StepList.Count}/{stageDataList[CurStageIdx].Answer.Count}";
+        if (stageStatus.StepList.Count == stageDataList[CurStageIdx].Answer.Count)
+        {
+            stepNumberImage.gameObject.SetActive(false);
+            nextButton.gameObject.SetActive(true);
+        }
     }
 }

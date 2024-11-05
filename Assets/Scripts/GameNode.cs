@@ -7,6 +7,7 @@ using UnityEngine.UI;
 
 public class GameNode : MonoBehaviour
 {
+    public Controller Cntlr;
     public Sprite SpriteCharacter;
     public bool FadedOut
     {
@@ -33,7 +34,20 @@ public class GameNode : MonoBehaviour
     }
     private bool _hasOutline;
 
+    public bool Dissolved
+    {
+        get { return _dissolved; }
+        set {
+            ImageBackground.gameObject.SetActive(!value);
+            ImageBackgroundDissolve.gameObject.SetActive(value);
+
+            _dissolved = value;
+        }
+    }
+    private bool _dissolved = false;
+
     public Image ImageBackground;
+    public Image ImageBackgroundDissolve;
     public Image ImageCharacter;
 
     private Material characterMaterial = null;
@@ -120,6 +134,8 @@ public class GameNode : MonoBehaviour
         Debug.Log($"OnClick:{Idx}");
         //EnableOutline(true);
         StartScale();
+        Dissolved = true;
+        Cntlr?.OnGameNodeClick(Idx);
     }
 
     void OnDisable()
